@@ -83,19 +83,18 @@ Summaries:
 answer_instructions = """Create a detailed comic storyboard based on the user's request and the provided research summaries.
 
 Strict Requirements:
-- Output ONLY valid JSON. No prose, no markdown fences, no comments.
-- The JSON must be an object where EACH KEY (string) represents a page (e.g., "page_1", "page_2").
-- Each page value must be an object with EXACTLY two keys:
-  - "id": integer, the page identifier (use 1-based numbers)
+- Output ONLY valid JSON array. No prose, no markdown fences, no comments.
+- The JSON must be an array of page objects. Each page object MUST have EXACTLY two keys:
+  - "id": integer, the 1-based page identifier (e.g., 1, 2, 3, ...)
   - "detail": string, a thorough page description that fine-grains every panel: characters' actions, attire, environment, camera/framing, dialogue with tone, props, transitions.
 - Do NOT invent facts. Ground all details in the provided summaries.
 - Include sources inline inside the "detail" string using markdown links (e.g., [apnews](https://vertexaisearch.cloud.google.com/id/1-0)).
 
 Example JSON (structure only):
-{
-  "page_1": { "id": 1, "detail": "..." },
-  "page_2": { "id": 2, "detail": "..." }
-}
+[
+  { "id": 1, "detail": "..." },
+  { "id": 2, "detail": "..." }
+]
 
 Instructions:
 - The current date is {current_date}.
