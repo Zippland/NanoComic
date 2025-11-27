@@ -6,9 +6,10 @@ def get_current_date():
     return datetime.now().strftime("%B %d, %Y")
 
 
-query_writer_instructions = """Your goal is to generate sophisticated and diverse web search queries. These queries are intended for an advanced automated web research tool capable of analyzing complex results, following links, and synthesizing information.
+query_writer_instructions = """Your goal is to generate sophisticated and diverse web search queries that gather everything needed to turn the user's idea into a detailed comic storyboard. These queries will fuel an advanced automated web research tool capable of analyzing complex results, following links, and synthesizing information.
 
 Instructions:
+- Target the details required for comics: characters (personality, appearance, speech style), settings (era, location, atmosphere), and key objects or events (what they are and how they look).
 - Always prefer a single search query, only add another query if the original question requests multiple aspects or elements and one query is not enough.
 - Each query should focus on one specific aspect of the original question.
 - Don't produce more than {number_queries} queries.
@@ -38,19 +39,19 @@ web_searcher_instructions = """Conduct targeted Google Searches to gather the mo
 
 Instructions:
 - Query should ensure that the most current information is gathered. The current date is {current_date}.
-- Conduct multiple, diverse searches to gather comprehensive information.
+- Conduct multiple, diverse searches to gather comprehensive information for building a comic storyboard: character traits (personality, visual appearance, clothing, speech patterns), definitions of any mentioned objects or terms, and setting details (time period, geography, mood, visual cues).
 - Consolidate key findings while meticulously tracking the source(s) for each specific piece of information.
-- The output should be a well-written summary or report based on your search findings. 
+- The output should be concise research notes oriented toward comic creation, not a narrative report. Capture factual details that help draw scenes and characters.
 - Only include the information found in the search results, don't make up any information.
 
 Research Topic:
 {research_topic}
 """
 
-reflection_instructions = """You are an expert research assistant analyzing summaries about "{research_topic}".
+reflection_instructions = """You are an expert research assistant analyzing summaries about "{research_topic}" to support a comic storyboard.
 
 Instructions:
-- Identify knowledge gaps or areas that need deeper exploration and generate a follow-up query. (1 or multiple).
+- Identify knowledge gaps that block a vivid comic storyboard: missing character personality or appearance, unclear speech style, undefined objects/terms, or incomplete setting/era/mood. Generate a follow-up query (1 or multiple) to fill these gaps.
 - If provided summaries are sufficient to answer the user's question, don't generate a follow-up query.
 - If there is a knowledge gap, generate a follow-up query that would help expand your understanding.
 - Focus on technical details, implementation specifics, or emerging trends that weren't fully covered.
@@ -79,15 +80,15 @@ Summaries:
 {summaries}
 """
 
-answer_instructions = """Generate a high-quality answer to the user's question based on the provided summaries.
+answer_instructions = """Create a detailed comic storyboard based on the user's request and the provided research summaries.
 
 Instructions:
 - The current date is {current_date}.
-- You are the final step of a multi-step research process, don't mention that you are the final step. 
-- You have access to all the information gathered from the previous steps.
-- You have access to the user's question.
-- Generate a high-quality answer to the user's question based on the provided summaries and the user's question.
-- Include the sources you used from the Summaries in the answer correctly, use markdown format (e.g. [apnews](https://vertexaisearch.cloud.google.com/id/1-0)). THIS IS A MUST.
+- You are the final step of a multi-step research process; don't mention that you are the final step.
+- Use the user's request and all research summaries to build the storyboard. Do not invent facts—stay grounded in the summaries.
+- If the topic includes people, describe their personality, visual appearance (hair, clothing, accessories), and speech style. If it includes objects, explain what they are and notable visual traits. If it includes locations or events, capture time period, atmosphere, and visual cues.
+- Output must be a panel-by-panel comic storyboard, not a research report. For each panel, include: setting and environment; camera/framing; characters present with positions, attire, and expressions; actions/gestures; dialogue with tone; and any props or transitions.
+- Include the sources you used from the Summaries in the storyboard inline using markdown (e.g. [apnews](https://vertexaisearch.cloud.google.com/id/1-0)). THIS IS A MUST.
 
 User Context:
 - {research_topic}
