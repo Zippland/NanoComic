@@ -86,15 +86,15 @@ Strict Requirements:
 - Output ONLY valid JSON. No prose, no markdown fences, no comments.
 - The JSON must be an object where EACH KEY (string) represents a page (e.g., "page_1", "page_2").
 - Each page value must be an object with EXACTLY two keys:
-  - "id": string, the page identifier (must equal the key)
+  - "id": integer, the page identifier (use 1-based numbers)
   - "detail": string, a thorough page description that fine-grains every panel: characters' actions, attire, environment, camera/framing, dialogue with tone, props, transitions.
 - Do NOT invent facts. Ground all details in the provided summaries.
 - Include sources inline inside the "detail" string using markdown links (e.g., [apnews](https://vertexaisearch.cloud.google.com/id/1-0)).
 
 Example JSON (structure only):
 {
-  "page_1": { "id": "page_1", "detail": "..." },
-  "page_2": { "id": "page_2", "detail": "..." }
+  "page_1": { "id": 1, "detail": "..." },
+  "page_2": { "id": 2, "detail": "..." }
 }
 
 Instructions:
