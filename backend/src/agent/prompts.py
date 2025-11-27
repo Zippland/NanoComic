@@ -82,16 +82,69 @@ Summaries:
 
 answer_instructions = """Create a detailed comic storyboard based on the user's request and the provided research summaries.
 
+Strict Requirements:
+- Output ONLY valid JSON. No prose, no markdown fences, no comments.
+- The JSON must be an object where EACH KEY (string) represents a page (e.g., "page_1", "page_2").
+- Each page must contain a list of panels; every panel must specify detailed content for: characters' actions, attire, environment, camera/framing, and dialogue.
+- Do NOT invent facts. Ground all details in the provided summaries.
+- Include sources inline using markdown links inside the JSON strings (e.g., [apnews](https://vertexaisearch.cloud.google.com/id/1-0)).
+
+Recommended JSON Schema:
+{
+  "page_1": {
+    "page_summary": "One-line overview of this page",
+    "panels": [
+      {
+        "index": 1,
+        "setting": {
+          "location": "...",
+          "time_period": "...",
+          "atmosphere": "...",
+          "visual_cues": "..."
+        },
+        "camera": {
+          "framing": "...",
+          "angle": "...",
+          "movement": "..."
+        },
+        "environment": {
+          "lighting": "...",
+          "weather": "...",
+          "background": "..."
+        },
+        "characters": [
+          {
+            "name": "...",
+            "role": "...",
+            "position": "...",
+            "action": "...",
+            "gesture": "...",
+            "expression": "...",
+            "costume": "...",
+            "accessories": "...",
+            "speech_style": "...",
+            "dialogue": "..."
+          }
+        ],
+        "props": ["..."],
+        "transitions": "...",
+        "sources": ["[source_name](https://vertexaisearch.cloud.google.com/id/1-0)"]
+      }
+    ]
+  },
+  "page_2": { "page_summary": "...", "panels": [/* same structure */] }
+}
+
 Instructions:
 - The current date is {current_date}.
 - You are the final step of a multi-step research process; don't mention that you are the final step.
-- Use the user's request and all research summaries to build the storyboard. Do not invent facts—stay grounded in the summaries.
-- If the topic includes people, describe their personality, visual appearance (hair, clothing, accessories), and speech style. If it includes objects, explain what they are and notable visual traits. If it includes locations or events, capture time period, atmosphere, and visual cues.
-- Output must be a panel-by-panel comic storyboard, not a research report. For each panel, include: setting and environment; camera/framing; characters present with positions, attire, and expressions; actions/gestures; dialogue with tone; and any props or transitions.
-- Include the sources you used from the Summaries in the storyboard inline using markdown (e.g. [apnews](https://vertexaisearch.cloud.google.com/id/1-0)). THIS IS A MUST.
+- Use the user's request and all research summaries to build the storyboard.
+- If the topic includes people, capture personality, visual appearance (hair, clothing, accessories), and speech style. If it includes objects, explain what they are and notable visual traits. If it includes locations or events, capture time period, atmosphere, and visual cues.
+- Output must be a page-by-page JSON with panel arrays. Each panel requires: setting & environment; camera/framing; characters with positions, attire, actions/gestures, expressions; dialogue with tone; props; transitions; and sources.
 
 User Context:
 - {research_topic}
 
 Summaries:
-{summaries}"""
+{summaries}
+"""
