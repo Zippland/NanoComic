@@ -1,0 +1,12 @@
+NanoComic / 漫画分镜生成器
+
+归属与感谢（Attributions & Acknowledgements）
+
+- 本项目衍生自 “Gemini Fullstack LangGraph Quickstart”，其代码在 Apache License 2.0 下发布。
+- `backend/` 目录包含 MIT 许可（Philipp Schmid）的代码与思路示例。
+- 感谢 LangGraph 社区与 Google Gemini 生态提供的工具与文档支持。
+
+许可说明（Licensing Notes）
+
+- 本项目继续遵守并保留上游许可证内容：根目录 `LICENSE`（Apache-2.0）与 `backend/LICENSE`（MIT）。
+- 在分发或修改本项目时，请一并保留上述许可证与本 NOTICE 文件。
