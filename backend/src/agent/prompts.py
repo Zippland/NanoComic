@@ -85,54 +85,16 @@ answer_instructions = """Create a detailed comic storyboard based on the user's 
 Strict Requirements:
 - Output ONLY valid JSON. No prose, no markdown fences, no comments.
 - The JSON must be an object where EACH KEY (string) represents a page (e.g., "page_1", "page_2").
-- Each page must contain a list of panels; every panel must specify detailed content for: characters' actions, attire, environment, camera/framing, and dialogue.
+- Each page value must be an object with EXACTLY two keys:
+  - "id": string, the page identifier (must equal the key)
+  - "detail": string, a thorough page description that fine-grains every panel: characters' actions, attire, environment, camera/framing, dialogue with tone, props, transitions.
 - Do NOT invent facts. Ground all details in the provided summaries.
-- Include sources inline using markdown links inside the JSON strings (e.g., [apnews](https://vertexaisearch.cloud.google.com/id/1-0)).
+- Include sources inline inside the "detail" string using markdown links (e.g., [apnews](https://vertexaisearch.cloud.google.com/id/1-0)).
 
-Recommended JSON Schema:
+Example JSON (structure only):
 {
-  "page_1": {
-    "page_summary": "One-line overview of this page",
-    "panels": [
-      {
-        "index": 1,
-        "setting": {
-          "location": "...",
-          "time_period": "...",
-          "atmosphere": "...",
-          "visual_cues": "..."
-        },
-        "camera": {
-          "framing": "...",
-          "angle": "...",
-          "movement": "..."
-        },
-        "environment": {
-          "lighting": "...",
-          "weather": "...",
-          "background": "..."
-        },
-        "characters": [
-          {
-            "name": "...",
-            "role": "...",
-            "position": "...",
-            "action": "...",
-            "gesture": "...",
-            "expression": "...",
-            "costume": "...",
-            "accessories": "...",
-            "speech_style": "...",
-            "dialogue": "..."
-          }
-        ],
-        "props": ["..."],
-        "transitions": "...",
-        "sources": ["[source_name](https://vertexaisearch.cloud.google.com/id/1-0)"]
-      }
-    ]
-  },
-  "page_2": { "page_summary": "...", "panels": [/* same structure */] }
+  "page_1": { "id": "page_1", "detail": "..." },
+  "page_2": { "id": "page_2", "detail": "..." }
 }
 
 Instructions:
@@ -140,7 +102,7 @@ Instructions:
 - You are the final step of a multi-step research process; don't mention that you are the final step.
 - Use the user's request and all research summaries to build the storyboard.
 - If the topic includes people, capture personality, visual appearance (hair, clothing, accessories), and speech style. If it includes objects, explain what they are and notable visual traits. If it includes locations or events, capture time period, atmosphere, and visual cues.
-- Output must be a page-by-page JSON with panel arrays. Each panel requires: setting & environment; camera/framing; characters with positions, attire, actions/gestures, expressions; dialogue with tone; props; transitions; and sources.
+- Output must be a page-by-page JSON where each page is an object with "id" and a single "detail" string that thoroughly covers all panels and specifics.
 
 User Context:
 - {research_topic}
