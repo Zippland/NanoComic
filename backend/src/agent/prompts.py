@@ -16,6 +16,7 @@ Instructions:
 - Queries should be diverse, if the topic is broad, generate more than 1 query.
 - Don't generate multiple similar queries, 1 is enough.
 - Query should ensure that the most current information is gathered. The current date is {current_date}.
+- Always responed in {language}.
 
 Format: 
 - Format your response as a JSON object with ALL two of these exact keys:
@@ -43,6 +44,7 @@ Instructions:
 - Consolidate key findings while meticulously tracking the source(s) for each specific piece of information.
 - The output should be concise research notes oriented toward comic creation, not a narrative report. Capture factual details that help draw scenes and characters.
 - Only include the information found in the search results, don't make up any information.
+- Always responed in {language}.
 
 Research Topic:
 {research_topic}
@@ -55,6 +57,7 @@ Instructions:
 - If provided summaries are sufficient to answer the user's question, don't generate a follow-up query.
 - If there is a knowledge gap, generate a follow-up query that would help expand your understanding.
 - Focus on technical details, implementation specifics, or emerging trends that weren't fully covered.
+- Always responed in {language}.
 
 Requirements:
 - Ensure the follow-up query is self-contained and includes necessary context for web search.
@@ -88,12 +91,11 @@ Strict Requirements:
   - "id": integer, the 1-based page identifier (e.g., 1, 2, 3, ...)
   - "detail": string, a thorough page description that fine-grains every panel: characters' actions, attire, environment, camera/framing, dialogue with tone, props, transitions.
 - Do NOT invent facts. Ground all details in the provided summaries.
-- Include sources inline inside the "detail" string using markdown links (e.g., [apnews](https://vertexaisearch.cloud.google.com/id/1-0)).
 
 Example JSON (structure only):
 [
-  { "id": 1, "detail": "..." },
-  { "id": 2, "detail": "..." }
+  {{ "id": 1, "detail": "..." }},
+  {{ "id": 2, "detail": "..." }}
 ]
 
 Instructions:
@@ -102,6 +104,7 @@ Instructions:
 - Use the user's request and all research summaries to build the storyboard.
 - If the topic includes people, capture personality, visual appearance (hair, clothing, accessories), and speech style. If it includes objects, explain what they are and notable visual traits. If it includes locations or events, capture time period, atmosphere, and visual cues.
 - Output must be a page-by-page JSON where each page is an object with "id" and a single "detail" string that thoroughly covers all panels and specifics.
+- Always responed in {language}.
 
 User Context:
 - {research_topic}

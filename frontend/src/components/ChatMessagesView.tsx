@@ -181,6 +181,30 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   handleCopy,
   copiedMessageId,
 }) => {
+  const parsedPages = (() => {
+    if (typeof message.content !== "string") return null;
+    try {
+      const data = JSON.parse(message.content);
+      if (
+        Array.isArray(data) &&
+        data.every(
+          (p) =>
+            p &&
+            typeof p === "object" &&
+            "id" in p &&
+            "detail" in p &&
+            typeof p.id === "number" &&
+            typeof p.detail === "string"
+        )
+      ) {
+        return data as { id: number; detail: string }[];
+      }
+    } catch (_e) {
+      return null;
+    }
+    return null;
+  })();
+
   // Determine which activity events to show and if it's for a live loading message
   const activityForThisBubble =
     isLastMessage && isOverallLoading ? liveActivity : historicalActivity;
@@ -196,11 +220,29 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
           />
         </div>
       )}
-      <ReactMarkdown components={mdComponents}>
-        {typeof message.content === "string"
-          ? message.content
-          : JSON.stringify(message.content)}
-      </ReactMarkdown>
+      {parsedPages ? (
+        <div className="space-y-3">
+          {parsedPages.map((page) => (
+            <div
+              key={page.id}
+              className="rounded-xl border border-neutral-700 bg-neutral-800/80 p-3 shadow-sm"
+            >
+              <div className="text-xs uppercase tracking-wide text-neutral-400 mb-1">
+                Page {page.id}
+              </div>
+              <ReactMarkdown components={mdComponents}>
+                {page.detail}
+              </ReactMarkdown>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <ReactMarkdown components={mdComponents}>
+          {typeof message.content === "string"
+            ? message.content
+            : JSON.stringify(message.content)}
+        </ReactMarkdown>
+      )}
       <Button
         variant="default"
         className={`cursor-pointer bg-neutral-700 border-neutral-600 text-neutral-300 self-end ${
@@ -226,7 +268,7 @@ interface ChatMessagesViewProps {
   messages: Message[];
   isLoading: boolean;
   scrollAreaRef: React.RefObject<HTMLDivElement | null>;
-  onSubmit: (inputValue: string, effort: string, model: string) => void;
+  onSubmit: (inputValue: string, effort: string, model: string, language: string) => void;
   onCancel: () => void;
   liveActivityEvents: ProcessedEvent[];
   historicalActivities: Record<string, ProcessedEvent[]>;

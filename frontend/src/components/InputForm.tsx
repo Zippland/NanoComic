@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { SquarePen, Brain, Send, StopCircle, Zap, Cpu } from "lucide-react";
+import {
+  SquarePen,
+  Brain,
+  Send,
+  StopCircle,
+  Zap,
+  Cpu,
+  Languages,
+} from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -12,7 +20,12 @@ import {
 
 // Updated InputFormProps
 interface InputFormProps {
-  onSubmit: (inputValue: string, effort: string, model: string) => void;
+  onSubmit: (
+    inputValue: string,
+    effort: string,
+    model: string,
+    language: string
+  ) => void;
   onCancel: () => void;
   isLoading: boolean;
   hasHistory: boolean;
@@ -26,12 +39,14 @@ export const InputForm: React.FC<InputFormProps> = ({
 }) => {
   const [internalInputValue, setInternalInputValue] = useState("");
   const [effort, setEffort] = useState("medium");
-  const [model, setModel] = useState("gemini-2.5-flash-preview-04-17");
+  // Default to a current, broadly capable model
+  const [model, setModel] = useState("gemini-2.5-flash");
+  const [language, setLanguage] = useState("English");
 
   const handleInternalSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!internalInputValue.trim()) return;
-    onSubmit(internalInputValue, effort, model);
+    onSubmit(internalInputValue, effort, model, language);
     setInternalInputValue("");
   };
 
@@ -134,30 +149,61 @@ export const InputForm: React.FC<InputFormProps> = ({
               <SelectTrigger className="w-[150px] bg-transparent border-none cursor-pointer">
                 <SelectValue placeholder="Model" />
               </SelectTrigger>
+            <SelectContent className="bg-neutral-700 border-neutral-600 text-neutral-300 cursor-pointer">
+              <SelectItem
+                value="gemini-2.5-flash-lite"
+                className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
+              >
+                <div className="flex items-center">
+                  <Zap className="h-4 w-4 mr-2 text-yellow-400" /> 2.5 Lite
+                </div>
+              </SelectItem>
+              <SelectItem
+                value="gemini-2.5-flash"
+                className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
+              >
+                <div className="flex items-center">
+                  <Zap className="h-4 w-4 mr-2 text-orange-400" /> 2.5 Flash
+                </div>
+              </SelectItem>
+              <SelectItem
+                value="gemini-3-pro-preview"
+                className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
+              >
+                <div className="flex items-center">
+                  <Cpu className="h-4 w-4 mr-2 text-purple-400" /> 3 Pro Preview
+                </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-row gap-2 bg-neutral-700 border-neutral-600 text-neutral-300 focus:ring-neutral-500 rounded-xl rounded-t-sm pl-2  max-w-[100%] sm:max-w-[90%]">
+            <div className="flex flex-row items-center text-sm ml-2">
+              <Languages className="h-4 w-4 mr-2" />
+              Language
+            </div>
+            <Select value={language} onValueChange={setLanguage}>
+              <SelectTrigger className="w-[150px] bg-transparent border-none cursor-pointer">
+                <SelectValue placeholder="Language" />
+              </SelectTrigger>
               <SelectContent className="bg-neutral-700 border-neutral-600 text-neutral-300 cursor-pointer">
                 <SelectItem
-                  value="gemini-2.0-flash"
+                  value="English"
                   className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
                 >
-                  <div className="flex items-center">
-                    <Zap className="h-4 w-4 mr-2 text-yellow-400" /> 2.0 Flash
-                  </div>
+                  English
                 </SelectItem>
                 <SelectItem
-                  value="gemini-2.5-flash-preview-04-17"
+                  value="简体中文"
                   className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
                 >
-                  <div className="flex items-center">
-                    <Zap className="h-4 w-4 mr-2 text-orange-400" /> 2.5 Flash
-                  </div>
+                  简体中文
                 </SelectItem>
                 <SelectItem
-                  value="gemini-2.5-pro-preview-05-06"
+                  value="日本語"
                   className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
                 >
-                  <div className="flex items-center">
-                    <Cpu className="h-4 w-4 mr-2 text-purple-400" /> 2.5 Pro
-                  </div>
+                  日本語
                 </SelectItem>
               </SelectContent>
             </Select>

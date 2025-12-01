@@ -55,6 +55,7 @@ def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerati
         Dictionary with state update, including search_query key containing the generated queries
     """
     configurable = Configuration.from_runnable_config(config)
+    language = state.get("language") or "English"
 
     # check for custom initial search query count
     if state.get("initial_search_query_count") is None:
@@ -75,6 +76,7 @@ def generate_query(state: OverallState, config: RunnableConfig) -> QueryGenerati
         current_date=current_date,
         research_topic=get_research_topic(state["messages"]),
         number_queries=state["initial_search_query_count"],
+        language=language,
     )
     # Generate the search queries
     result = structured_llm.invoke(formatted_prompt)
@@ -106,9 +108,11 @@ def web_research(state: WebSearchState, config: RunnableConfig) -> OverallState:
     """
     # Configure
     configurable = Configuration.from_runnable_config(config)
+    language = state.get("language") or "English"
     formatted_prompt = web_searcher_instructions.format(
         current_date=get_current_date(),
         research_topic=state["search_query"],
+        language=language,
     )
 
     # Uses the google genai client as the langchain client doesn't return grounding metadata
@@ -121,12 +125,15 @@ def web_research(state: WebSearchState, config: RunnableConfig) -> OverallState:
         },
     )
     # resolve the urls to short urls for saving tokens and time
-    resolved_urls = resolve_urls(
-        response.candidates[0].grounding_metadata.grounding_chunks, state["id"]
-    )
+    candidate = response.candidates[0] if response and response.candidates else None
+    grounding_chunks = None
+    if candidate and getattr(candidate, "grounding_metadata", None):
+        grounding_chunks = getattr(candidate.grounding_metadata, "grounding_chunks", None)
+    resolved_urls = resolve_urls(grounding_chunks, state["id"])
     # Gets the citations and adds them to the generated text
     citations = get_citations(response, resolved_urls)
-    modified_text = insert_citation_markers(response.text, citations)
+    base_text = response.text or ""
+    modified_text = insert_citation_markers(base_text, citations)
     sources_gathered = [item for citation in citations for item in citation["segments"]]
 
     return {
@@ -151,6 +158,7 @@ def reflection(state: OverallState, config: RunnableConfig) -> ReflectionState:
         Dictionary with state update, including search_query key containing the generated follow-up query
     """
     configurable = Configuration.from_runnable_config(config)
+    language = state.get("language") or "English"
     # Increment the research loop count and get the reasoning model
     state["research_loop_count"] = state.get("research_loop_count", 0) + 1
     reasoning_model = state.get("reasoning_model", configurable.reflection_model)
@@ -161,6 +169,7 @@ def reflection(state: OverallState, config: RunnableConfig) -> ReflectionState:
         current_date=current_date,
         research_topic=get_research_topic(state["messages"]),
         summaries="\n\n---\n\n".join(state["web_research_result"]),
+        language=language,
     )
     # init Reasoning Model
     llm = ChatGoogleGenerativeAI(
@@ -232,13 +241,21 @@ def finalize_answer(state: OverallState, config: RunnableConfig):
     """
     configurable = Configuration.from_runnable_config(config)
     reasoning_model = state.get("reasoning_model") or configurable.answer_model
+    language = state.get("language") or "English"
 
     # Format the prompt
     current_date = get_current_date()
+    # Escape braces in user content to avoid str.format KeyErrors when summaries contain JSON-like text
+    safe_topic = get_research_topic(state["messages"]).replace("{", "{{").replace(
+        "}", "}}"
+    )
+    summaries_text = "\n---\n\n".join(state["web_research_result"])
+    safe_summaries = summaries_text.replace("{", "{{").replace("}", "}}")
     formatted_prompt = answer_instructions.format(
         current_date=current_date,
-        research_topic=get_research_topic(state["messages"]),
-        summaries="\n---\n\n".join(state["web_research_result"]),
+        research_topic=safe_topic,
+        summaries=safe_summaries,
+        language=language,
     )
 
     # init Reasoning Model, default to Gemini 2.5 Flash
