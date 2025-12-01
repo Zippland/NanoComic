@@ -41,7 +41,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   const [effort, setEffort] = useState("medium");
   // Default to a current, broadly capable model
   const [model, setModel] = useState("gemini-2.5-flash");
-  const [language, setLanguage] = useState("English");
+  const [language, setLanguage] = useState("简体中文");
 
   const handleInternalSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -188,16 +188,16 @@ export const InputForm: React.FC<InputFormProps> = ({
               </SelectTrigger>
               <SelectContent className="bg-neutral-700 border-neutral-600 text-neutral-300 cursor-pointer">
                 <SelectItem
-                  value="English"
-                  className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
-                >
-                  English
-                </SelectItem>
-                <SelectItem
                   value="简体中文"
                   className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
                 >
                   简体中文
+                </SelectItem>
+                <SelectItem
+                  value="English"
+                  className="hover:bg-neutral-600 focus:bg-neutral-600 cursor-pointer"
+                >
+                  English
                 </SelectItem>
                 <SelectItem
                   value="日本語"

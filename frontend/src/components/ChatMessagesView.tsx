@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Copy, CopyCheck } from "lucide-react";
 import { InputForm } from "@/components/InputForm";
 import { Button } from "@/components/ui/button";
-import { useState, ReactNode } from "react";
+import { useState, ReactNode, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -181,26 +181,36 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   handleCopy,
   copiedMessageId,
 }) => {
+  const [pageImages, setPageImages] = useState<
+    Record<
+      string,
+      { status: "pending" | "done" | "error"; url?: string; error?: string }
+    >
+  >({});
+
   const parsedPages = (() => {
-    if (typeof message.content !== "string") return null;
-    try {
-      const data = JSON.parse(message.content);
-      if (
-        Array.isArray(data) &&
-        data.every(
-          (p) =>
-            p &&
-            typeof p === "object" &&
-            "id" in p &&
-            "detail" in p &&
-            typeof p.id === "number" &&
-            typeof p.detail === "string"
-        )
-      ) {
-        return data as { id: number; detail: string }[];
+    const raw = message.content;
+    let data: any = raw;
+    if (typeof raw === "string") {
+      try {
+        data = JSON.parse(raw);
+      } catch (_e) {
+        return null;
       }
-    } catch (_e) {
-      return null;
+    }
+    if (
+      Array.isArray(data) &&
+      data.every(
+        (p) =>
+          p &&
+          typeof p === "object" &&
+          "id" in p &&
+          "detail" in p &&
+          typeof p.id === "number" &&
+          typeof p.detail === "string"
+      )
+    ) {
+      return data as { id: number; detail: string }[];
     }
     return null;
   })();
@@ -209,6 +219,48 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   const activityForThisBubble =
     isLastMessage && isOverallLoading ? liveActivity : historicalActivity;
   const isLiveActivityForThisBubble = isLastMessage && isOverallLoading;
+
+  useEffect(() => {
+    if (!parsedPages || !message.id) return;
+    const backendBase = import.meta.env.DEV
+      ? "http://localhost:2024"
+      : "http://localhost:8123";
+
+    parsedPages.forEach((page) => {
+      const key = `${message.id}-${page.id}`;
+      if (pageImages[key]) return; // already requested
+
+      setPageImages((prev) => ({
+        ...prev,
+        [key]: { status: "pending" },
+      }));
+
+      fetch(`${backendBase}/generate_image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: page.detail, number_of_images: 1 }),
+      })
+        .then(async (res) => {
+          if (!res.ok) throw new Error(await res.text());
+          return res.json();
+        })
+        .then((data) => {
+          const url =
+            data?.images && Array.isArray(data.images) ? data.images[0] : null;
+          if (!url) throw new Error("No image returned");
+          setPageImages((prev) => ({
+            ...prev,
+            [key]: { status: "done", url },
+          }));
+        })
+        .catch((err) => {
+          setPageImages((prev) => ({
+            ...prev,
+            [key]: { status: "error", error: String(err) },
+          }));
+        });
+    });
+  }, [parsedPages, message.id, pageImages]);
 
   return (
     <div className={`relative break-words flex flex-col`}>
@@ -233,6 +285,34 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
               <ReactMarkdown components={mdComponents}>
                 {page.detail}
               </ReactMarkdown>
+              <div className="mt-2">
+                {(() => {
+                  const key = `${message.id}-${page.id}`;
+                  const img = pageImages[key];
+                  if (!img || img.status === "pending") {
+                    return (
+                      <div className="flex items-center text-xs text-neutral-400 gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Generating image...</span>
+                      </div>
+                    );
+                  }
+                  if (img.status === "error") {
+                    return (
+                      <div className="text-xs text-red-400">
+                        Image generation failed: {img.error}
+                      </div>
+                    );
+                  }
+                  return (
+                    <img
+                      src={img.url}
+                      alt={`Page ${page.id} illustration`}
+                      className="mt-1 rounded-lg border border-neutral-700"
+                    />
+                  );
+                })()}
+              </div>
             </div>
           ))}
         </div>
@@ -246,7 +326,11 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
       <Button
         variant="default"
         className={`cursor-pointer bg-neutral-700 border-neutral-600 text-neutral-300 self-end ${
-          message.content.length > 0 ? "visible" : "hidden"
+          (typeof message.content === "string"
+            ? message.content.length
+            : JSON.stringify(message.content).length) > 0
+            ? "visible"
+            : "hidden"
         }`}
         onClick={() =>
           handleCopy(

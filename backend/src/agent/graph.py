@@ -1,4 +1,6 @@
 import os
+import json
+import re
 
 from agent.tools_and_schemas import SearchQueryList, Reflection
 from dotenv import load_dotenv
@@ -267,17 +269,38 @@ def finalize_answer(state: OverallState, config: RunnableConfig):
     )
     result = llm.invoke(formatted_prompt)
 
+    # Clean potential markdown fences and parse JSON so we return structured content
+    content = result.content
+    if isinstance(content, str):
+        # Strip markdown fences ```json ... ```
+        cleaned = re.sub(r"^```[a-zA-Z]*\s*|\s*```$", "", content.strip())
+        try:
+            parsed = json.loads(cleaned)
+        except Exception:
+            parsed = cleaned
+        content_payload = parsed
+    else:
+        content_payload = content
+
     # Replace the short urls with the original urls and add all used urls to the sources_gathered
     unique_sources = []
     for source in state["sources_gathered"]:
-        if source["short_url"] in result.content:
-            result.content = result.content.replace(
-                source["short_url"], source["value"]
-            )
+        if isinstance(content_payload, str) and source["short_url"] in content_payload:
+            content_payload = content_payload.replace(source["short_url"], source["value"])
+            unique_sources.append(source)
+        elif isinstance(content_payload, list):
+            # if list of page dicts, replace inside detail strings
+            updated_pages = []
+            for page in content_payload:
+                if isinstance(page, dict) and isinstance(page.get("detail"), str):
+                    page_detail = page["detail"].replace(source["short_url"], source["value"])
+                    page = {**page, "detail": page_detail}
+                updated_pages.append(page)
+            content_payload = updated_pages
             unique_sources.append(source)
 
     return {
-        "messages": [AIMessage(content=result.content)],
+        "messages": [AIMessage(content=content_payload)],
         "sources_gathered": unique_sources,
     }
 
