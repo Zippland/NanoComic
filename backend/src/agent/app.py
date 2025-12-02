@@ -44,50 +44,73 @@ class ImageRequest(BaseModel):
 @app.post("/generate_image")
 def generate_image(req: ImageRequest):
     """Generate an image for a given prompt and return base64 data URLs."""
-    try:
-        tools = [{"google_search": {}}] if req.use_search else []
-        prompt = req.prompt.replace("\n", " ")
-        response = image_client.models.generate_content(
-            model=IMAGE_MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                tools=tools,
-                image_config=types.ImageConfig(
-                    aspect_ratio=req.aspect_ratio,
-                    image_size=req.image_size,
+    prompt = req.prompt.replace("\n", " ")
+    tools = [{"google_search": {}}] if req.use_search else []
+    last_error: Exception | HTTPException | None = None
+
+    for attempt in range(3):
+        try:
+            response = image_client.models.generate_content(
+                model=IMAGE_MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    tools=tools,
+                    image_config=types.ImageConfig(
+                        aspect_ratio=req.aspect_ratio,
+                        image_size=req.image_size,
+                    ),
                 ),
-            ),
-        )
-        # Collect any inline image parts from response (support both .parts and candidates content)
-        parts = []
-        if getattr(response, "parts", None):
-            parts = [part for part in response.parts if getattr(part, "inline_data", None)]
-        if not parts and getattr(response, "candidates", None):
-            for candidate in response.candidates:
-                if getattr(candidate, "content", None) and getattr(candidate.content, "parts", None):
-                    for part in candidate.content.parts:
-                        if getattr(part, "inline_data", None):
-                            parts.append(part)
+            )
+            logging.info(
+                "Image prompt_feedback (attempt %s): %s",
+                attempt + 1,
+                getattr(response, "prompt_feedback", None),
+            )
+            if getattr(response, "candidates", None):
+                logging.info(
+                    "Image finish_reason (attempt %s): %s",
+                    attempt + 1,
+                    getattr(response.candidates[0], "finish_reason", None),
+                )
 
-        if not parts:
-            detail = {
-                "error": "No image content returned",
-                "prompt_feedback": getattr(response, "prompt_feedback", None),
-                "finish_reason": getattr(response.candidates[0], "finish_reason", None)
-                if getattr(response, "candidates", None)
-                else None,
-            }
-            raise HTTPException(status_code=500, detail=detail)
+            # Collect inline image parts
+            parts = []
+            if getattr(response, "parts", None):
+                parts = [part for part in response.parts if getattr(part, "inline_data", None)]
+            if not parts and getattr(response, "candidates", None):
+                for candidate in response.candidates:
+                    if getattr(candidate, "content", None) and getattr(candidate.content, "parts", None):
+                        for part in candidate.content.parts:
+                            if getattr(part, "inline_data", None):
+                                parts.append(part)
 
-        images = []
-        for part in parts[: req.number_of_images]:
-            data_bytes = part.inline_data.data
-            b64 = base64.b64encode(data_bytes).decode("ascii")
-            mime_type = part.inline_data.mime_type or "image/png"
-            images.append(f"data:{mime_type};base64,{b64}")
-        return {"images": images}
-    except Exception as exc:  # pragma: no cover
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+            if not parts:
+                detail = {
+                    "error": "No image content returned",
+                    "prompt_feedback": getattr(response, "prompt_feedback", None),
+                    "finish_reason": getattr(response.candidates[0], "finish_reason", None)
+                    if getattr(response, "candidates", None)
+                    else None,
+                }
+                last_error = HTTPException(status_code=500, detail=detail)
+                continue
+
+            images = []
+            for part in parts[: req.number_of_images]:
+                data_bytes = part.inline_data.data
+                b64 = base64.b64encode(data_bytes).decode("ascii")
+                mime_type = part.inline_data.mime_type or "image/png"
+                images.append(f"data:{mime_type};base64,{b64}")
+            return {"images": images}
+        except HTTPException as exc:
+            last_error = exc
+        except Exception as exc:  # pragma: no cover
+            last_error = exc
+
+    # If all retries failed, propagate the last error
+    if isinstance(last_error, HTTPException):
+        raise last_error
+    raise HTTPException(status_code=500, detail=str(last_error))
 
 
 def create_frontend_router(build_dir="../frontend/dist"):
