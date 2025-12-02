@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from google import genai
 from google.genai import types
+from dotenv import load_dotenv
 
 # Define the FastAPI app
 app = FastAPI()
@@ -22,19 +23,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if GEMINI_API_KEY is None:
     raise ValueError("GEMINI_API_KEY is not set")
 
 image_client = genai.Client(api_key=GEMINI_API_KEY)
 # Per request: use Gemini 3 image preview model
-IMAGE_MODEL = "models/gemini-3-pro-image-preview"
+IMAGE_MODEL = "gemini-3-pro-image-preview"
 
 
 class ImageRequest(BaseModel):
     prompt: str
     number_of_images: int = 1
-    aspect_ratio: str = "4:3"
+    aspect_ratio: str = "3:4"
     image_size: str = "1K"
     use_search: bool = True
 
@@ -67,15 +69,21 @@ def generate_image(req: ImageRequest):
                             parts.append(part)
 
         if not parts:
-            raise RuntimeError("No image content returned")
+            detail = {
+                "error": "No image content returned",
+                "prompt_feedback": getattr(response, "prompt_feedback", None),
+                "finish_reason": getattr(response.candidates[0], "finish_reason", None)
+                if getattr(response, "candidates", None)
+                else None,
+            }
+            raise HTTPException(status_code=500, detail=detail)
 
         images = []
         for part in parts[: req.number_of_images]:
-            image = part.as_image()
-            buffer = io.BytesIO()
-            image.save(buffer, format="PNG")
-            b64 = base64.b64encode(buffer.getvalue()).decode("ascii")
-            images.append(f"data:image/png;base64,{b64}")
+            data_bytes = part.inline_data.data
+            b64 = base64.b64encode(data_bytes).decode("ascii")
+            mime_type = part.inline_data.mime_type or "image/png"
+            images.append(f"data:{mime_type};base64,{b64}")
         return {"images": images}
     except Exception as exc:  # pragma: no cover
         raise HTTPException(status_code=500, detail=str(exc)) from exc
