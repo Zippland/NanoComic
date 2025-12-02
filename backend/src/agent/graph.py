@@ -26,12 +26,7 @@ from agent.prompts import (
     answer_instructions,
 )
 from langchain_google_genai import ChatGoogleGenerativeAI
-from agent.utils import (
-    get_citations,
-    get_research_topic,
-    insert_citation_markers,
-    resolve_urls,
-)
+from agent.utils import get_research_topic
 
 load_dotenv()
 
@@ -126,22 +121,12 @@ def web_research(state: WebSearchState, config: RunnableConfig) -> OverallState:
             "temperature": 0,
         },
     )
-    # resolve the urls to short urls for saving tokens and time
-    candidate = response.candidates[0] if response and response.candidates else None
-    grounding_chunks = None
-    if candidate and getattr(candidate, "grounding_metadata", None):
-        grounding_chunks = getattr(candidate.grounding_metadata, "grounding_chunks", None)
-    resolved_urls = resolve_urls(grounding_chunks, state["id"])
-    # Gets the citations and adds them to the generated text
-    citations = get_citations(response, resolved_urls)
     base_text = response.text or ""
-    modified_text = insert_citation_markers(base_text, citations)
-    sources_gathered = [item for citation in citations for item in citation["segments"]]
 
     return {
-        "sources_gathered": sources_gathered,
+        "sources_gathered": [],
         "search_query": [state["search_query"]],
-        "web_research_result": [modified_text],
+        "web_research_result": [base_text],
     }
 
 
@@ -282,26 +267,9 @@ def finalize_answer(state: OverallState, config: RunnableConfig):
     else:
         content_payload = content
 
-    # Replace the short urls with the original urls and add all used urls to the sources_gathered
-    unique_sources = []
-    for source in state["sources_gathered"]:
-        if isinstance(content_payload, str) and source["short_url"] in content_payload:
-            content_payload = content_payload.replace(source["short_url"], source["value"])
-            unique_sources.append(source)
-        elif isinstance(content_payload, list):
-            # if list of page dicts, replace inside detail strings
-            updated_pages = []
-            for page in content_payload:
-                if isinstance(page, dict) and isinstance(page.get("detail"), str):
-                    page_detail = page["detail"].replace(source["short_url"], source["value"])
-                    page = {**page, "detail": page_detail}
-                updated_pages.append(page)
-            content_payload = updated_pages
-            unique_sources.append(source)
-
     return {
         "messages": [AIMessage(content=content_payload)],
-        "sources_gathered": unique_sources,
+        "sources_gathered": [],
     }
 
 

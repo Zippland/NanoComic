@@ -59,7 +59,7 @@ export default function App() {
         };
       } else if (event.finalize_answer) {
         processedEvent = {
-          title: "Finalizing Answer",
+          title: "Generate Scripts",
           data: "Composing and presenting the final answer.",
         };
         hasFinalizeEventOccurredRef.current = true;

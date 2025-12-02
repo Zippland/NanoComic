@@ -3,6 +3,7 @@ import base64
 import io
 import os
 import pathlib
+import logging
 from fastapi import FastAPI, Response, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware

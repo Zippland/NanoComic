@@ -6,109 +6,113 @@ def get_current_date():
     return datetime.now().strftime("%B %d, %Y")
 
 
-query_writer_instructions = """Your goal is to generate sophisticated and diverse web search queries that gather everything needed to turn the user's idea into a detailed comic storyboard. These queries will fuel an advanced automated web research tool capable of analyzing complex results, following links, and synthesizing information.
+query_writer_instructions = """你的目标是生成精细且多样的网页搜索查询，收集将用户想法转化为详细漫画分镜所需的一切信息。这些查询会驱动一个先进的自动化网络研究工具，它能分析复杂结果、跟进链接并综合信息。
 
-Instructions:
-- Target the details required for comics: characters (personality, appearance, speech style), settings (era, location, atmosphere), and key objects or events (what they are and how they look).
-- Always prefer a single search query, only add another query if the original question requests multiple aspects or elements and one query is not enough.
-- Each query should focus on one specific aspect of the original question.
-- Don't produce more than {number_queries} queries.
-- Queries should be diverse, if the topic is broad, generate more than 1 query.
-- Don't generate multiple similar queries, 1 is enough.
-- Query should ensure that the most current information is gathered. The current date is {current_date}.
-- Always responed in {language}.
+指引：
+- 瞄准漫画需要的细节：角色（性格、外貌、说话风格）、场景（时代、地点、氛围）以及关键物件或事件（是什么、长什么样）。
+- 优先只用一个搜索查询；只有当原始问题包含多个要点且一个查询不够时才再添加查询。
+- 每个查询应聚焦原始问题的一个具体方面。
+- 不要生成超过 {number_queries} 个查询。
+- 查询要多样；如果主题较广，生成多于 1 个查询。
+- 不要生成多个相似查询，1 个就够。
+- 查询应确保获取最新信息。当前日期是 {current_date}。
+- 始终用 {language} 回答。
 
-Format: 
-- Format your response as a JSON object with ALL two of these exact keys:
-   - "rationale": Brief explanation of why these queries are relevant
-   - "query": A list of search queries
+格式：
+- 将响应格式化为一个 JSON 对象，且只包含以下两个键：
+   - "rationale"：简要说明这些查询为何相关
+   - "query"：搜索查询列表
 
-Example:
+示例：
 
-Topic: What revenue grew more last year apple stock or the number of people buying an iphone
+主题: 去年苹果股票的收入增长更多，还是购买 iPhone 的人数增长更多
 ```json
 {{
-    "rationale": "To answer this comparative growth question accurately, we need specific data points on Apple's stock performance and iPhone sales metrics. These queries target the precise financial information needed: company revenue trends, product-specific unit sales figures, and stock price movement over the same fiscal period for direct comparison.",
+    "rationale": "要准确回答这一比较性的增长问题，需要苹果股票表现和 iPhone 销售指标的具体数据。以下查询聚焦所需的精确信息：公司收入趋势、单品销量数字以及同一财年的股价走势，便于直接比较。",
     "query": ["Apple total revenue growth fiscal year 2024", "iPhone unit sales growth fiscal year 2024", "Apple stock price growth fiscal year 2024"],
 }}
 ```
 
-Context: {research_topic}"""
+上下文: {research_topic}"""
 
 
-web_searcher_instructions = """Conduct targeted Google Searches to gather the most recent, credible information on "{research_topic}" and synthesize it into a verifiable text artifact.
+web_searcher_instructions = """进行有针对性的 Google 搜索，收集关于“{research_topic}”的最新可信信息，并综合成可验证的文本材料。
 
-Instructions:
-- Query should ensure that the most current information is gathered. The current date is {current_date}.
-- Conduct multiple, diverse searches to gather comprehensive information for building a comic storyboard: character traits (personality, visual appearance, clothing, speech patterns), definitions of any mentioned objects or terms, and setting details (time period, geography, mood, visual cues).
-- Consolidate key findings while meticulously tracking the source(s) for each specific piece of information.
-- The output should be concise research notes oriented toward comic creation, not a narrative report. Capture factual details that help draw scenes and characters.
-- Only include the information found in the search results, don't make up any information.
-- Always responed in {language}.
+指引：
+- 查询要确保获取最新信息。当前日期是 {current_date}。
+- 进行多样化的多次搜索，收集构建漫画分镜所需的全面信息：角色特征（性格、视觉外观、服饰、说话方式）、提到的物体或术语定义，以及场景细节（时代、地理、氛围、视觉线索）。
+- 整理关键信息时要细致记录每条信息对应的来源。
+- 输出应是面向漫画创作的简明研究笔记，而非叙事报告。只捕捉有助于绘制场景与角色的事实细节。
+- 只包含搜索结果中的信息，不要编造。
+- 始终用 {language} 回答。
 
-Research Topic:
+研究主题：
 {research_topic}
 """
 
-reflection_instructions = """You are an expert research assistant analyzing summaries about "{research_topic}" to support a comic storyboard.
+reflection_instructions = """你是一名资深研究助理，正在分析关于“{research_topic}”的摘要，以支持漫画分镜创作。
 
-Instructions:
-- Identify knowledge gaps that block a vivid comic storyboard: missing character personality or appearance, unclear speech style, undefined objects/terms, or incomplete setting/era/mood. Generate a follow-up query (1 or multiple) to fill these gaps.
-- If provided summaries are sufficient to answer the user's question, don't generate a follow-up query.
-- If there is a knowledge gap, generate a follow-up query that would help expand your understanding.
-- Focus on technical details, implementation specifics, or emerging trends that weren't fully covered.
-- Always responed in {language}.
+指引：
+- 找出阻碍生动分镜的知识缺口：缺失的角色性格或外貌、不明确的说话风格、未定义的物体/术语、或不完整的场景时代/氛围。生成 1 条或多条后续查询来补齐这些缺口。
+- 如果给定摘要已足够回答用户问题，不要生成后续查询。
+- 若存在知识缺口，生成能扩展理解的后续查询。
+- 关注摘要未充分覆盖的技术细节、实现细节或新兴趋势。
+- 始终用 {language} 回答。
 
-Requirements:
-- Ensure the follow-up query is self-contained and includes necessary context for web search.
+要求：
+- 确保后续查询是自包含的，并包含网页搜索所需的上下文。
 
-Output Format:
-- Format your response as a JSON object with these exact keys:
-   - "is_sufficient": true or false
-   - "knowledge_gap": Describe what information is missing or needs clarification
-   - "follow_up_queries": Write a specific question to address this gap
+输出格式：
+- 将响应格式化为包含以下精确键的 JSON 对象：
+   - "is_sufficient": true 或 false
+   - "knowledge_gap": 描述缺失或需要澄清的信息
+   - "follow_up_queries": 编写针对该缺口的具体问题
 
-Example:
+示例：
 ```json
 {{
-    "is_sufficient": true, // or false
-    "knowledge_gap": "The summary lacks information about performance metrics and benchmarks", // "" if is_sufficient is true
-    "follow_up_queries": ["What are typical performance benchmarks and metrics used to evaluate [specific technology]?"] // [] if is_sufficient is true
+    "is_sufficient": true, // 或 false
+    "knowledge_gap": "摘要缺少关于性能指标和基准的描述", // is_sufficient 为 true 时填 ""
+    "follow_up_queries": ["评估 [特定技术] 常用的性能基准和指标是什么？"] // is_sufficient 为 true 时填 []
 }}
 ```
 
-Reflect carefully on the Summaries to identify knowledge gaps and produce a follow-up query. Then, produce your output following this JSON format:
+<SUMMARIES>
+# 仔细审视 Summaries，找出知识缺口并生成后续查询。然后按上述 JSON 格式输出。
 
-Summaries:
 {summaries}
+</SUMMARIES>
 """
 
-answer_instructions = """Create a detailed comic storyboard based on the user's request and the provided research summaries.
+answer_instructions = """你是一名漫画脚本师，正在创作关于“{research_topic}”的详细的漫画分镜脚本。
 
-Strict Requirements:
-- Output ONLY valid JSON array. No prose, no markdown fences, no comments.
-- The JSON must be an array of page objects. Each page object MUST have EXACTLY two keys:
-  - "id": integer, the 1-based page identifier (e.g., 1, 2, 3, ...)
-  - "detail": string, a thorough page description that fine-grains every panel: characters' actions, attire, environment, camera/framing, dialogue with tone, props, transitions.
-- Do NOT invent facts. Ground all details in the provided summaries.
+严格要求：
+- 只输出有效的 JSON 数组。不要有正文、Markdown 代码块或注释。
+- JSON 必须是页面对象的数组。每个页面对象必须且仅有两个键：
+  - "id"：整数，基于 1 的页面编号（如 1, 2, 3, ...）
+  - "detail"：字符串，对每个分镜的详尽描述：角色动作、服装、环境、镜头/构图、带语气的对话、道具、转场。
+- 不要编造事实。所有细节都要基于提供的摘要。
 
-Example JSON (structure only):
+示例 JSON（仅示意结构）：
 [
   {{ "id": 1, "detail": "..." }},
   {{ "id": 2, "detail": "..." }}
 ]
 
-Instructions:
-- The current date is {current_date}.
-- You are the final step of a multi-step research process; don't mention that you are the final step.
-- Use the user's request and all research summaries to build the storyboard.
-- If the topic includes people, capture personality, visual appearance (hair, clothing, accessories), and speech style. If it includes objects, explain what they are and notable visual traits. If it includes locations or events, capture time period, atmosphere, and visual cues.
-- Output must be a page-by-page JSON where each page is an object with "id" and a single "detail" string that thoroughly covers all panels and specifics.
-- Always responed in {language}.
+指引：
+- 当前日期是 {current_date}。
+- 你是多步研究流程的最后一步；不要提及这一点。
+- 使用用户请求和全部研究摘要来构建分镜，每一页都是单独生成的，所以应该包含所有描述性信息。
+- 如果主题包含人物，每一页都需要捕捉性格、外貌（发型、服装、配饰）和说话风格；如果包含物体，每一页都需要说明它们是什么以及显著外观特征；如果包含地点或事件，每一页都需要捕捉时代、氛围和视觉线索。
+- 输出必须是逐页的 JSON，每一页是含有 "id" 和单个 "detail" 字符串的对象，详尽覆盖所有分镜和细节。
+- 始终用 {language} 回答。
 
-User Context:
+用户上下文：
 - {research_topic}
 
-Summaries:
+<SUMMARIES>
+# Summaries
+
 {summaries}
+</SUMMARIES>
 """

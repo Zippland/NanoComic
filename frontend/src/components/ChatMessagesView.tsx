@@ -1,10 +1,10 @@
 import type React from "react";
 import type { Message } from "@langchain/langgraph-sdk";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Copy, CopyCheck } from "lucide-react";
+import { Loader2, Pencil, ArrowUpCircle } from "lucide-react";
 import { InputForm } from "@/components/InputForm";
 import { Button } from "@/components/ui/button";
-import { useState, ReactNode, useEffect } from "react";
+import { useState, ReactNode, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import {
   ActivityTimeline,
   ProcessedEvent,
 } from "@/components/ActivityTimeline"; // Assuming ActivityTimeline is in the same dir or adjust path
+import { Textarea } from "@/components/ui/textarea";
 
 // Markdown component props type from former ReportView
 type MdComponentProps = {
@@ -166,8 +167,6 @@ interface AiMessageBubbleProps {
   isLastMessage: boolean;
   isOverallLoading: boolean;
   mdComponents: typeof mdComponents;
-  handleCopy: (text: string, messageId: string) => void;
-  copiedMessageId: string | null;
   aspectRatio?: string;
   imageSize?: string;
 }
@@ -180,17 +179,20 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   isLastMessage,
   isOverallLoading,
   mdComponents,
-  handleCopy,
-  copiedMessageId,
   aspectRatio,
   imageSize,
 }) => {
-  const [pageImages, setPageImages] = useState<
-    Record<
-      string,
-      { status: "pending" | "done" | "error"; url?: string; error?: string }
-    >
-  >({});
+  type PageImageState = {
+    status: "idle" | "pending" | "done" | "error";
+    images: { url: string; id: string }[];
+    activeIndex: number;
+    error?: string;
+    draft: string;
+    isEditing: boolean;
+  };
+
+  const messageKey = message.id ?? "ai";
+  const [pageStates, setPageStates] = useState<Record<string, PageImageState>>({});
 
   const parsedPages = (() => {
     const raw = message.content;
@@ -225,51 +227,198 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   const isLiveActivityForThisBubble = isLastMessage && isOverallLoading;
 
   useEffect(() => {
-    if (!parsedPages || !message.id) return;
-    const backendBase = import.meta.env.DEV
-      ? "http://localhost:2024"
-      : "http://localhost:8123";
-
-    parsedPages.forEach((page) => {
-      const key = `${message.id}-${page.id}`;
-      if (pageImages[key]) return; // already requested
-
-      setPageImages((prev) => ({
-        ...prev,
-        [key]: { status: "pending" },
-      }));
-
-      fetch(`${backendBase}/generate_image`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: page.detail,
-          number_of_images: 1,
-          aspect_ratio: aspectRatio || "16:9",
-          image_size: imageSize || "1K",
-        }),
-      })
-        .then(async (res) => {
-          if (!res.ok) throw new Error(await res.text());
-          return res.json();
-        })
-        .then((data) => {
-          const url =
-            data?.images && Array.isArray(data.images) ? data.images[0] : null;
-          if (!url) throw new Error("No image returned");
-          setPageImages((prev) => ({
-            ...prev,
-            [key]: { status: "done", url },
-          }));
-        })
-        .catch((err) => {
-          setPageImages((prev) => ({
-            ...prev,
-            [key]: { status: "error", error: String(err) },
-          }));
-        });
+    if (!parsedPages) return;
+    setPageStates((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      parsedPages.forEach((page) => {
+        const key = `${messageKey}-${page.id}`;
+        if (!next[key]) {
+          next[key] = {
+            status: "idle",
+            images: [],
+            activeIndex: 0,
+            draft: page.detail,
+            isEditing: false,
+          };
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
     });
-  }, [parsedPages, message.id, pageImages]);
+  }, [parsedPages, messageKey]);
+
+  const requestImage = useCallback(
+    async (key: string, prompt: string) => {
+      const backendBase = import.meta.env.DEV
+        ? "http://localhost:2024"
+        : "http://localhost:8123";
+      const trimmedPrompt = prompt.trim();
+      if (!trimmedPrompt) return;
+
+      setPageStates((prev) => {
+        const current =
+          prev[key] ||
+          ({
+            status: "idle",
+            images: [],
+            activeIndex: 0,
+            draft: trimmedPrompt,
+            isEditing: false,
+          } as PageImageState);
+        return {
+          ...prev,
+          [key]: {
+            ...current,
+            status: "pending",
+            error: undefined,
+            draft: trimmedPrompt,
+          },
+        };
+      });
+
+      try {
+        const res = await fetch(`${backendBase}/generate_image`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: trimmedPrompt,
+            number_of_images: 1,
+            aspect_ratio: aspectRatio || "16:9",
+            image_size: imageSize || "1K",
+          }),
+        });
+        if (!res.ok) {
+          throw new Error(await res.text());
+        }
+        const data = await res.json();
+        const url =
+          data?.images && Array.isArray(data.images) ? data.images[0] : null;
+        if (!url) throw new Error("No image returned");
+        setPageStates((prev) => {
+          const current =
+            prev[key] ||
+            ({
+              status: "idle",
+              images: [],
+              activeIndex: 0,
+              draft: trimmedPrompt,
+              isEditing: false,
+            } as PageImageState);
+          const newImages = [
+            ...(current.images || []),
+            {
+              url,
+              id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            },
+          ];
+          return {
+            ...prev,
+            [key]: {
+              ...current,
+              status: "done",
+              images: newImages,
+              activeIndex: newImages.length - 1,
+              error: undefined,
+              draft: trimmedPrompt,
+            },
+          };
+        });
+      } catch (err) {
+        setPageStates((prev) => {
+          const current =
+            prev[key] ||
+            ({
+              status: "idle",
+              images: [],
+              activeIndex: 0,
+              draft: trimmedPrompt,
+              isEditing: false,
+            } as PageImageState);
+          return {
+            ...prev,
+            [key]: {
+              ...current,
+              status: "error",
+              error: String(err),
+            },
+          };
+        });
+      }
+    },
+    [aspectRatio, imageSize]
+  );
+
+  useEffect(() => {
+    if (!parsedPages) return;
+    parsedPages.forEach((page) => {
+      const key = `${messageKey}-${page.id}`;
+      const state = pageStates[key];
+      if (!state || (state.status === "idle" && state.images.length === 0)) {
+        requestImage(key, state?.draft ?? page.detail);
+      }
+    });
+  }, [parsedPages, messageKey, pageStates, requestImage]);
+
+  const handlePromptChange = (key: string, value: string) => {
+    setPageStates((prev) => {
+      const current = prev[key];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [key]: {
+          ...current,
+          draft: value,
+        },
+      };
+    });
+  };
+
+  const handleToggleEdit = (key: string) => {
+    setPageStates((prev) => {
+      const current = prev[key];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [key]: {
+          ...current,
+          isEditing: !current.isEditing,
+        },
+      };
+    });
+  };
+
+  const handleSubmitPrompt = (key: string, fallbackPrompt: string) => {
+    const promptToUse =
+      (pageStates[key]?.draft || fallbackPrompt || "").trim();
+    if (!promptToUse) return;
+    requestImage(key, promptToUse);
+    setPageStates((prev) => {
+      const current = prev[key];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [key]: {
+          ...current,
+          isEditing: false,
+        },
+      };
+    });
+  };
+
+  const handleSetActiveImage = (key: string, idx: number) => {
+    setPageStates((prev) => {
+      const current = prev[key];
+      if (!current) return prev;
+      return {
+        ...prev,
+        [key]: {
+          ...current,
+          activeIndex: idx,
+        },
+      };
+    });
+  };
 
   return (
     <div className={`relative break-words flex flex-col`}>
@@ -283,47 +432,129 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
       )}
       {parsedPages ? (
         <div className="space-y-3">
-          {parsedPages.map((page) => (
-            <div
-              key={page.id}
-              className="rounded-xl border border-neutral-700 bg-neutral-800/80 p-3 shadow-sm"
-            >
-              <div className="text-xs uppercase tracking-wide text-neutral-400 mb-1">
-                Page {page.id}
-              </div>
-              <ReactMarkdown components={mdComponents}>
-                {page.detail}
-              </ReactMarkdown>
-              <div className="mt-2">
-                {(() => {
-                  const key = `${message.id}-${page.id}`;
-                  const img = pageImages[key];
-                  if (!img || img.status === "pending") {
-                    return (
-                      <div className="flex items-center text-xs text-neutral-400 gap-2">
+          {parsedPages.map((page) => {
+            const key = `${messageKey}-${page.id}`;
+            const pageState = pageStates[key];
+            const images = pageState?.images || [];
+            const activeIndex =
+              images.length > 0
+                ? Math.min(pageState?.activeIndex ?? 0, images.length - 1)
+                : 0;
+            const activeImage =
+              images.length > 0 ? images[activeIndex] : undefined;
+            const isPending = pageState?.status === "pending";
+            return (
+              <div
+                key={page.id}
+                className="rounded-xl border border-neutral-700 bg-neutral-800/80 p-3 shadow-sm space-y-2"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="text-xs uppercase tracking-wide text-neutral-400">
+                    Page {page.id}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-neutral-300 hover:text-white hover:bg-neutral-700"
+                      onClick={() => handleToggleEdit(key)}
+                      aria-label="Edit prompt"
+                      title="Edit prompt"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled={isPending}
+                      className="h-8 w-8 text-blue-300 hover:text-blue-100 hover:bg-blue-500/10 disabled:opacity-60"
+                      onClick={() => handleSubmitPrompt(key, page.detail)}
+                      aria-label="Regenerate image"
+                      title="Regenerate image"
+                    >
+                      {isPending ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Generating image...</span>
-                      </div>
-                    );
-                  }
-                  if (img.status === "error") {
-                    return (
-                      <div className="text-xs text-red-400">
-                        Image generation failed: {img.error}
-                      </div>
-                    );
-                  }
-                  return (
-                    <img
-                      src={img.url}
-                      alt={`Page ${page.id} illustration`}
-                      className="mt-1 rounded-lg border border-neutral-700"
-                    />
-                  );
-                })()}
+                      ) : (
+                        <ArrowUpCircle className="h-5 w-5" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {pageState?.isEditing ? (
+                  <Textarea
+                    value={pageState.draft}
+                    onChange={(e) => handlePromptChange(key, e.target.value)}
+                    className="mt-1 bg-neutral-900 border-neutral-700 text-neutral-100"
+                    rows={3}
+                    autoFocus
+                  />
+                ) : (
+                  <ReactMarkdown components={mdComponents}>
+                    {pageState?.draft ?? page.detail}
+                  </ReactMarkdown>
+                )}
+
+                <div className="mt-1 space-y-2">
+                  {activeImage ? (
+                    <div className="relative">
+                      <img
+                        src={activeImage.url}
+                        alt={`Page ${page.id} illustration`}
+                        className="w-full rounded-lg border border-neutral-700"
+                      />
+                      {isPending && (
+                        <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center">
+                          <Loader2 className="h-6 w-6 animate-spin text-white" />
+                        </div>
+                      )}
+                    </div>
+                  ) : pageState?.status === "error" ? (
+                    <div className="text-xs text-red-400">
+                      Image generation failed: {pageState.error}
+                    </div>
+                  ) : (
+                    <div className="flex items-center text-xs text-neutral-400 gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Generating image...</span>
+                    </div>
+                  )}
+
+                  {pageState?.status === "error" && activeImage && (
+                    <div className="text-xs text-red-400">
+                      Image generation failed: {pageState.error}
+                    </div>
+                  )}
+
+                  {images.length > 1 && (
+                    <div className="flex gap-2 flex-wrap">
+                      {images.map((img, idx) => (
+                        <button
+                          key={img.id}
+                          className={`relative border ${
+                            idx === activeIndex
+                              ? "border-blue-400"
+                              : "border-neutral-700"
+                          } rounded-lg overflow-hidden`}
+                          onClick={() => handleSetActiveImage(key, idx)}
+                          aria-label={`Show version ${idx + 1}`}
+                        >
+                          <img
+                            src={img.url}
+                            alt={`Version ${idx + 1}`}
+                            className="h-16 w-24 object-cover"
+                          />
+                          {idx === activeIndex && (
+                            <div className="absolute inset-0 ring-2 ring-blue-400/60 rounded-lg pointer-events-none" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <ReactMarkdown components={mdComponents}>
@@ -332,27 +563,6 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
             : JSON.stringify(message.content)}
         </ReactMarkdown>
       )}
-      <Button
-        variant="default"
-        className={`cursor-pointer bg-neutral-700 border-neutral-600 text-neutral-300 self-end ${
-          (typeof message.content === "string"
-            ? message.content.length
-            : JSON.stringify(message.content).length) > 0
-            ? "visible"
-            : "hidden"
-        }`}
-        onClick={() =>
-          handleCopy(
-            typeof message.content === "string"
-              ? message.content
-              : JSON.stringify(message.content),
-            message.id!
-          )
-        }
-      >
-        {copiedMessageId === message.id ? "Copied" : "Copy"}
-        {copiedMessageId === message.id ? <CopyCheck /> : <Copy />}
-      </Button>
     </div>
   );
 };
@@ -387,17 +597,6 @@ export function ChatMessagesView({
   aspectRatio,
   imageSize,
 }: ChatMessagesViewProps) {
-  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
-
-  const handleCopy = async (text: string, messageId: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedMessageId(messageId);
-      setTimeout(() => setCopiedMessageId(null), 2000); // Reset after 2 seconds
-    } catch (err) {
-      console.error("Failed to copy text: ", err);
-    }
-  };
   return (
     <div className="flex flex-col h-full">
       <ScrollArea className="flex-1 overflow-y-auto" ref={scrollAreaRef}>
@@ -424,8 +623,6 @@ export function ChatMessagesView({
                       isLastMessage={isLast}
                       isOverallLoading={isLoading} // Pass global loading state
                       mdComponents={mdComponents}
-                      handleCopy={handleCopy}
-                      copiedMessageId={copiedMessageId}
                       aspectRatio={aspectRatio}
                       imageSize={imageSize}
                     />
