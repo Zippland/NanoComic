@@ -46,9 +46,10 @@ def generate_image(req: ImageRequest):
     """Generate an image for a given prompt and return base64 data URLs."""
     try:
         tools = [{"google_search": {}}] if req.use_search else []
+        prompt = req.prompt.replace("\n", " ")
         response = image_client.models.generate_content(
             model=IMAGE_MODEL,
-            contents=req.prompt,
+            contents=prompt,
             config=types.GenerateContentConfig(
                 tools=tools,
                 image_config=types.ImageConfig(
