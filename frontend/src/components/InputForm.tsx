@@ -24,7 +24,9 @@ interface InputFormProps {
     inputValue: string,
     effort: string,
     model: string,
-    language: string
+    language: string,
+    aspectRatio: string,
+    imageSize: string
   ) => void;
   onCancel: () => void;
   isLoading: boolean;
@@ -38,15 +40,17 @@ export const InputForm: React.FC<InputFormProps> = ({
   hasHistory,
 }) => {
   const [internalInputValue, setInternalInputValue] = useState("");
-  const [effort, setEffort] = useState("medium");
+  const [effort, setEffort] = useState("low");
   // Default to a current, broadly capable model
   const [model, setModel] = useState("gemini-2.5-flash");
   const [language, setLanguage] = useState("简体中文");
+  const [aspectRatio, setAspectRatio] = useState("16:9");
+  const [imageSize, setImageSize] = useState("1K");
 
   const handleInternalSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!internalInputValue.trim()) return;
-    onSubmit(internalInputValue, effort, model, language);
+    onSubmit(internalInputValue, effort, model, language, aspectRatio, imageSize);
     setInternalInputValue("");
   };
 
@@ -74,7 +78,7 @@ export const InputForm: React.FC<InputFormProps> = ({
           value={internalInputValue}
           onChange={(e) => setInternalInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Who won the Euro 2024 and scored the most goals?"
+          placeholder="白雪公主大战奥特曼"
           className={`w-full text-neutral-100 placeholder-neutral-500 resize-none border-0 focus:outline-none focus:ring-0 outline-none focus-visible:ring-0 shadow-none
                         md:text-base  min-h-[56px] max-h-[200px]`}
           rows={1}
@@ -107,9 +111,10 @@ export const InputForm: React.FC<InputFormProps> = ({
           )}
         </div>
       </div>
-      <div className="flex items-center justify-between">
-        <div className="flex flex-row gap-2">
-          <div className="flex flex-row gap-2 bg-neutral-700 border-neutral-600 text-neutral-300 focus:ring-neutral-500 rounded-xl rounded-t-sm pl-2  max-w-[100%] sm:max-w-[90%]">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex flex-col gap-2 w-full">
+          <div className="flex flex-wrap gap-2">
+            <div className="flex flex-row gap-2 bg-neutral-700 border-neutral-600 text-neutral-300 focus:ring-neutral-500 rounded-xl rounded-t-sm pl-2">
             <div className="flex flex-row items-center text-sm">
               <Brain className="h-4 w-4 mr-2" />
               Effort
@@ -140,7 +145,7 @@ export const InputForm: React.FC<InputFormProps> = ({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex flex-row gap-2 bg-neutral-700 border-neutral-600 text-neutral-300 focus:ring-neutral-500 rounded-xl rounded-t-sm pl-2  max-w-[100%] sm:max-w-[90%]">
+            <div className="flex flex-row gap-2 bg-neutral-700 border-neutral-600 text-neutral-300 focus:ring-neutral-500 rounded-xl rounded-t-sm pl-2">
             <div className="flex flex-row items-center text-sm ml-2">
               <Cpu className="h-4 w-4 mr-2" />
               Model
@@ -173,11 +178,11 @@ export const InputForm: React.FC<InputFormProps> = ({
                 <div className="flex items-center">
                   <Cpu className="h-4 w-4 mr-2 text-purple-400" /> 3 Pro Preview
                 </div>
-                </SelectItem>
+              </SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div className="flex flex-row gap-2 bg-neutral-700 border-neutral-600 text-neutral-300 focus:ring-neutral-500 rounded-xl rounded-t-sm pl-2  max-w-[100%] sm:max-w-[90%]">
+            <div className="flex flex-row gap-2 bg-neutral-700 border-neutral-600 text-neutral-300 focus:ring-neutral-500 rounded-xl rounded-t-sm pl-2">
             <div className="flex flex-row items-center text-sm ml-2">
               <Languages className="h-4 w-4 mr-2" />
               Language
@@ -207,7 +212,42 @@ export const InputForm: React.FC<InputFormProps> = ({
                 </SelectItem>
               </SelectContent>
             </Select>
+            </div>
           </div>
+          <div className="flex flex-wrap gap-2">
+            <div className="flex flex-row gap-2 bg-neutral-700 border-neutral-600 text-neutral-300 focus:ring-neutral-500 rounded-xl rounded-t-sm pl-2">
+            <div className="flex flex-row items-center text-sm ml-2">
+              <Cpu className="h-4 w-4 mr-2" />
+              Aspect
+            </div>
+            <Select value={aspectRatio} onValueChange={setAspectRatio}>
+              <SelectTrigger className="w-[140px] bg-transparent border-none cursor-pointer">
+                <SelectValue placeholder="Aspect Ratio" />
+              </SelectTrigger>
+              <SelectContent className="bg-neutral-700 border-neutral-600 text-neutral-300 cursor-pointer">
+                <SelectItem value="16:9">16:9</SelectItem>
+                <SelectItem value="4:3">4:3</SelectItem>
+                <SelectItem value="1:1">1:1</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+            <div className="flex flex-row gap-2 bg-neutral-700 border-neutral-600 text-neutral-300 focus:ring-neutral-500 rounded-xl rounded-t-sm pl-2">
+            <div className="flex flex-row items-center text-sm ml-2">
+              <Cpu className="h-4 w-4 mr-2" />
+              Size
+            </div>
+            <Select value={imageSize} onValueChange={setImageSize}>
+              <SelectTrigger className="w-[120px] bg-transparent border-none cursor-pointer">
+                <SelectValue placeholder="Image Size" />
+              </SelectTrigger>
+              <SelectContent className="bg-neutral-700 border-neutral-600 text-neutral-300 cursor-pointer">
+                <SelectItem value="1K">1K</SelectItem>
+                <SelectItem value="2K">2K</SelectItem>
+                <SelectItem value="4K">4K</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         </div>
         {hasHistory && (
           <Button

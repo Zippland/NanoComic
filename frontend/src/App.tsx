@@ -13,6 +13,10 @@ export default function App() {
   const [historicalActivities, setHistoricalActivities] = useState<
     Record<string, ProcessedEvent[]>
   >({});
+  const [imageConfig, setImageConfig] = useState({
+    aspectRatio: "16:9",
+    imageSize: "1K",
+  });
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const hasFinalizeEventOccurredRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,7 +109,9 @@ export default function App() {
       submittedInputValue: string,
       effort: string,
       model: string,
-      language: string
+      language: string,
+      aspectRatio: string,
+      imageSize: string
     ) => {
       if (!submittedInputValue.trim()) return;
       setProcessedEventsTimeline([]);
@@ -140,12 +146,15 @@ export default function App() {
           id: Date.now().toString(),
         },
       ];
+      setImageConfig({ aspectRatio, imageSize });
       thread.submit({
         messages: newMessages,
         initial_search_query_count: initial_search_query_count,
         max_research_loops: max_research_loops,
         reasoning_model: model,
         language,
+        aspect_ratio: aspectRatio,
+        image_size: imageSize,
       });
     },
     [thread]
@@ -188,6 +197,8 @@ export default function App() {
               onCancel={handleCancel}
               liveActivityEvents={processedEventsTimeline}
               historicalActivities={historicalActivities}
+              aspectRatio={imageConfig.aspectRatio}
+              imageSize={imageConfig.imageSize}
             />
           )}
       </main>

@@ -168,6 +168,8 @@ interface AiMessageBubbleProps {
   mdComponents: typeof mdComponents;
   handleCopy: (text: string, messageId: string) => void;
   copiedMessageId: string | null;
+  aspectRatio?: string;
+  imageSize?: string;
 }
 
 // AiMessageBubble Component
@@ -180,6 +182,8 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   mdComponents,
   handleCopy,
   copiedMessageId,
+  aspectRatio,
+  imageSize,
 }) => {
   const [pageImages, setPageImages] = useState<
     Record<
@@ -238,7 +242,12 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
       fetch(`${backendBase}/generate_image`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: page.detail, number_of_images: 1 }),
+        body: JSON.stringify({
+          prompt: page.detail,
+          number_of_images: 1,
+          aspect_ratio: aspectRatio || "16:9",
+          image_size: imageSize || "1K",
+        }),
       })
         .then(async (res) => {
           if (!res.ok) throw new Error(await res.text());
@@ -352,10 +361,19 @@ interface ChatMessagesViewProps {
   messages: Message[];
   isLoading: boolean;
   scrollAreaRef: React.RefObject<HTMLDivElement | null>;
-  onSubmit: (inputValue: string, effort: string, model: string, language: string) => void;
+  onSubmit: (
+    inputValue: string,
+    effort: string,
+    model: string,
+    language: string,
+    aspectRatio: string,
+    imageSize: string
+  ) => void;
   onCancel: () => void;
   liveActivityEvents: ProcessedEvent[];
   historicalActivities: Record<string, ProcessedEvent[]>;
+  aspectRatio?: string;
+  imageSize?: string;
 }
 
 export function ChatMessagesView({
@@ -366,6 +384,8 @@ export function ChatMessagesView({
   onCancel,
   liveActivityEvents,
   historicalActivities,
+  aspectRatio,
+  imageSize,
 }: ChatMessagesViewProps) {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
@@ -406,6 +426,8 @@ export function ChatMessagesView({
                       mdComponents={mdComponents}
                       handleCopy={handleCopy}
                       copiedMessageId={copiedMessageId}
+                      aspectRatio={aspectRatio}
+                      imageSize={imageSize}
                     />
                   )}
                 </div>
