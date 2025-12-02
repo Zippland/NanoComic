@@ -3,6 +3,7 @@
 一个面向漫画创作的分镜生成项目：自动调研并输出逐格脚本。  
 Storyboarding for comics: auto research and frame-by-frame scripts.
 
+![app screenshot](20251202-164111.png)
 ## 功能概览 / Feature highlights
 - 多步研究：生成查询 → 并行搜索 → 反思补充 → 分镜 JSON。  
   Multi-step research: queries → parallel search → reflection → JSON storyboard.
@@ -15,6 +16,8 @@ Storyboarding for comics: auto research and frame-by-frame scripts.
 
 - 一键开发启动：`make dev`。  
   One-command dev start: `make dev`.
+
+![app screenshot](20251202-164118.jpeg)
 
 ## 目录结构 / Project layout
 - `backend/`：LangGraph + FastAPI，含 `/generate_image`。  
