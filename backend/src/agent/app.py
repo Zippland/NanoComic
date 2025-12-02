@@ -34,25 +34,48 @@ IMAGE_MODEL = "models/gemini-3-pro-image-preview"
 class ImageRequest(BaseModel):
     prompt: str
     number_of_images: int = 1
+    aspect_ratio: str = "4:3"
+    image_size: str = "1K"
+    use_search: bool = True
 
 
 @app.post("/generate_image")
 def generate_image(req: ImageRequest):
     """Generate an image for a given prompt and return base64 data URLs."""
     try:
-        response = image_client.models.generate_images(
+        tools = [{"google_search": {}}] if req.use_search else []
+        response = image_client.models.generate_content(
             model=IMAGE_MODEL,
-            prompt=req.prompt,
-            config=types.GenerateImagesConfig(number_of_images=req.number_of_images),
+            contents=req.prompt,
+            config=types.GenerateContentConfig(
+                tools=tools,
+                image_config=types.ImageConfig(
+                    aspect_ratio=req.aspect_ratio,
+                    image_size=req.image_size,
+                ),
+            ),
         )
+        # Collect any inline image parts from response (support both .parts and candidates content)
+        parts = []
+        if getattr(response, "parts", None):
+            parts = [part for part in response.parts if getattr(part, "inline_data", None)]
+        if not parts and getattr(response, "candidates", None):
+            for candidate in response.candidates:
+                if getattr(candidate, "content", None) and getattr(candidate.content, "parts", None):
+                    for part in candidate.content.parts:
+                        if getattr(part, "inline_data", None):
+                            parts.append(part)
+
+        if not parts:
+            raise RuntimeError("No image content returned")
+
         images = []
-        for generated_image in response.generated_images:
+        for part in parts[: req.number_of_images]:
+            image = part.as_image()
             buffer = io.BytesIO()
-            generated_image.image.save(buffer, format="PNG")
+            image.save(buffer, format="PNG")
             b64 = base64.b64encode(buffer.getvalue()).decode("ascii")
             images.append(f"data:image/png;base64,{b64}")
-        if not images:
-            raise RuntimeError("No image generated")
         return {"images": images}
     except Exception as exc:  # pragma: no cover
         raise HTTPException(status_code=500, detail=str(exc)) from exc
